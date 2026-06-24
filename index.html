@@ -442,11 +442,11 @@
                                       onClick={() => {
                                         if (isPlayingAudio === aula.id) {
                                           setIsPlayingAudio(null);
-                                          const audioEl = document.getElementById(`audio-player-${aula.id}`) as HTMLAudioElement;
+                                          const audioEl = document.getElementById(`audio-player-${aula.id}`);
                                           if (audioEl) audioEl.pause();
                                         } else {
                                           setIsPlayingAudio(aula.id);
-                                          const audioEl = document.getElementById(`audio-player-${aula.id}`) as HTMLAudioElement;
+                                          const audioEl = document.getElementById(`audio-player-${aula.id}`);
                                           if (audioEl) {
                                             audioEl.play().catch(e => {
                                               showToast("Falha ao reproduzir áudio: " + e.message, "error");

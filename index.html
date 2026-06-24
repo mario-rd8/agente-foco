@@ -439,12 +439,35 @@
                                       <span>Resumo</span>
                                     </button>
                                     <button
-                                      onClick={() => setIsPlayingAudio(isPlayingAudio === aula.id ? null : aula.id)}
+                                      onClick={() => {
+                                        if (isPlayingAudio === aula.id) {
+                                          setIsPlayingAudio(null);
+                                          const audioEl = document.getElementById(`audio-player-${aula.id}`) as HTMLAudioElement;
+                                          if (audioEl) audioEl.pause();
+                                        } else {
+                                          setIsPlayingAudio(aula.id);
+                                          const audioEl = document.getElementById(`audio-player-${aula.id}`) as HTMLAudioElement;
+                                          if (audioEl) {
+                                            audioEl.play().catch(e => {
+                                              showToast("Falha ao reproduzir áudio: " + e.message, "error");
+                                              setIsPlayingAudio(null);
+                                            });
+                                          }
+                                        }
+                                      }}
                                       className={`p-2 rounded-lg text-xs flex items-center gap-1 ${isPlayingAudio === aula.id ? 'bg-[#f26522]' : 'bg-[#1c1d1e] hover:bg-white/10'}`}
                                     >
                                       <i data-lucide="volume-2" className="w-3.5 h-3.5"></i>
-                                      <span>{isPlayingAudio === aula.id ? 'Ouvindo...' : 'Áudio'}</span>
+                                      <span>{isPlayingAudio === aula.id ? 'Parar' : 'Áudio'}</span>
                                     </button>
+                                    {aula.audio_url && (
+                                      <audio 
+                                        id={`audio-player-${aula.id}`} 
+                                        src={aula.audio_url} 
+                                        onEnded={() => setIsPlayingAudio(null)}
+                                        className="hidden" 
+                                      />
+                                    )}
                                   </>
                                 )}
                                 {aula.status === 'Erro de Processamento' && (

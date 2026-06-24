@@ -239,10 +239,16 @@ export async function dispararNotificacoesWhatsApp(aulaId: string) {
   }
 
   // 2. Busca os alunos ativos vinculados a este tenant/empresa_id (Multi-tenant RLS)
-  const { data: alunos, error: fetchAlunosErr } = await supabase
-    .from('alunos')
-    .select('id, nome, telefone')
-    .eq('empresa_id', aula.empresa_id); // Acesso administrativo bypassa o RLS
+  // Caso a empresa_id seja 'tenant-matriz', trazemos também alunos com empresa_id nula ou vazia.
+  let query = supabase.from('alunos').select('id, nome, telefone, empresa_id');
+  
+  if (aula.empresa_id === 'tenant-matriz') {
+    query = query.or(`empresa_id.eq.tenant-matriz,empresa_id.is.null,empresa_id.eq.""`);
+  } else {
+    query = query.eq('empresa_id', aula.empresa_id);
+  }
+
+  const { data: alunos, error: fetchAlunosErr } = await query;
 
   if (fetchAlunosErr || !alunos || alunos.length === 0) {
     console.warn(`Nenhum aluno ativo encontrado para o tenant ${aula.empresa_id}. Finalizando fluxo.`);

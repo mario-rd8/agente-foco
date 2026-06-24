@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Química 1000 - Agente de Foco MVP</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Montserrat Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <!-- React & Babel CDN -->
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.22.20/babel.min.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@0.294.0/dist/umd/lucide.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .font-heading {
+      font-family: 'Montserrat', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-[#090a0a] text-white min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const AULAS_INICIAIS = [
+      { id: '1', titulo: 'ELTROQUIMICA - PILHA E ELETROLESE', data_prevista: '16/08/2026', folder_drive_id: '1jTIZ9wdqsdMYcOaiMUflWyz4LuE67gD9', status: 'Aguardando', empresa_id: 'tenant-matriz' },
+      { id: '2', titulo: 'TERMOQUIMICA / CINETICA QUIMICA', data_prevista: '23/08/2026', folder_drive_id: '1_TN-fRBEUsblDIkMAFmWfZqgeE5QjZuc', status: 'Concluído', empresa_id: 'tenant-matriz', meet_url: 'https://meet.google.com/abc-defg-hij', resumo_texto: 'A aula abordou calorimetria, entalpia (H), equações termoquímicas e fatores que afetam a velocidade das reações químicas (concentração, temperatura, catalisadores). O foco principal foi a análise dos gráficos de energia.', audio_url: 'https://example.com/audio2.mp3' },
+      { id: '3', titulo: 'EQUILIBRIO QUIMICO / FUNÇÕES INORGÊNICAS', data_prevista: '30/08/2026', folder_drive_id: '1nEUb-F5vCiCmC1Rm_6IwEEugwZZC-JZj', status: 'Aguardando', empresa_id: 'tenant-matriz' },
+      { id: '4', titulo: 'EQUILIBRIO IONICO', data_prevista: '06/09/2026', folder_drive_id: '1dRP_zGdF5C9VpxIZOUpvjLb4fPO-4hqn', status: 'Aguardando', empresa_id: 'tenant-matriz' },
+      { id: '5', titulo: 'ESTEQUIOMETRIA', data_prevista: '13/09/2026', folder_drive_id: '12UKbhDZvJncL5YF3LQozHTwFTwoj_Ce3', status: 'Erro de Processamento', empresa_id: 'tenant-matriz' },
+      { id: '6', titulo: 'RADIOATIVIDADE / MODELOS ATOMICOS', data_prevista: '20/09/2026', folder_drive_id: '1n12rehvDRVetQ3JZPOLg8bI1ohleFOVO', status: 'Aguardando', empresa_id: 'tenant-filial1' },
+      { id: '7', titulo: 'FUNCOES ORGANICAS', data_prevista: '27/09/2026', folder_drive_id: '1dTMQWtkeJEuMSWB0ojWLJE_PcqzzsNOC', status: 'Aguardando', empresa_id: 'tenant-filial1' },
+      { id: '8', titulo: 'PROPRIEDADES DOS COMPOSTOS ORGANICOS', data_prevista: '04/10/2026', folder_drive_id: '1XEXxPMG_99VURltdx7h9xbBycCsKAPnw', status: 'Aguardando', empresa_id: 'tenant-filial1' },
+      { id: '9', titulo: 'ISOMERIA', data_prevista: '11/10/2026', folder_drive_id: '1zn3RfXnFHbGpBVv-NN4lkJy9myOqTtn8', status: 'Aguardando', empresa_id: 'tenant-online' },
+      { id: '10', titulo: 'REACOES ORGANICAS', data_prevista: '18/10/2026', folder_drive_id: '1T_I-CQvIEtmxcgKu4svpeHJMb9DvS8Av', status: 'Aguardando', empresa_id: 'tenant-online' },
+      { id: '11', titulo: 'TABELA PERIODICA/ LIGACOES QUIMICAS', data_prevista: '25/10/2026', folder_drive_id: '1Go3pQeXz93sy5AVhngDaryMyaAQMM3nn', status: 'Aguardando', empresa_id: 'tenant-online' },
+      { id: '12', titulo: 'METODOS DE SEPARACAO E QUIMICA AMBIENTAL', data_prevista: '01/11/2026', folder_drive_id: '1iEeVHwJPAh3RUC8u7QOwm--uKK4iPoLX', status: 'Aguardando', empresa_id: 'tenant-online' }
+    ];
+
+    const TENANTS = [
+      { id: 'tenant-matriz', nome: 'Força Isoladas - Matriz Recife' },
+      { id: 'tenant-filial1', nome: 'Força Isoladas - Caruaru' },
+      { id: 'tenant-online', nome: 'Força Isoladas - EAD' }
+    ];
+
+    function App() {
+      const [aulas, setAulas] = useState(AULAS_INICIAIS);
+      const [selectedTenantId, setSelectedTenantId] = useState('tenant-matriz');
+      const [selectedAulaId, setSelectedAulaId] = useState('1');
+      const [loadingIniciar, setLoadingIniciar] = useState(false);
+      const [isRecording, setIsRecording] = useState(false);
+      const [meetUrl, setMeetUrl] = useState('');
+      const [copiando, setCopiando] = useState(false);
+      const [toasts, setToasts] = useState([]);
+      const [activeResumo, setActiveResumo] = useState(null);
+      const [isPlayingAudio, setIsPlayingAudio] = useState(null);
+
+      useEffect(() => {
+        // Inicializa ícones do Lucide de forma segura
+        if (typeof lucide !== 'undefined' && lucide.createIcons) {
+          lucide.createIcons();
+        }
+      }, [aulas, isRecording, meetUrl, activeResumo, isPlayingAudio, selectedTenantId]);
+
+      const showToast = (message, type = 'success') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => {
+          setToasts(prev => prev.filter(t => t.id !== id));
+        }, 4000);
+      };
+
+      const handleIniciarAula = () => {
+        if (isRecording) return;
+        setLoadingIniciar(true);
+        setTimeout(() => {
+          setLoadingIniciar(false);
+          setIsRecording(true);
+          const randStr = Math.random().toString(36).substring(2, 5) + '-' + 
+                          Math.random().toString(36).substring(2, 6) + '-' + 
+                          Math.random().toString(36).substring(2, 5);
+          const generatedUrl = `https://meet.google.com/${randStr}`;
+          setMeetUrl(generatedUrl);
+
+          setAulas(prev => prev.map(a => {
+            if (a.id === selectedAulaId) {
+              return { ...a, status: 'Gravando', meet_url: generatedUrl };
+            }
+            return a;
+          }));
+          showToast("Aula e gravação iniciadas com sucesso!", "success");
+        }, 1500);
+      };
+
+      const handleCopyLink = () => {
+        if (!meetUrl) return;
+        setCopiando(true);
+        navigator.clipboard.writeText(meetUrl).then(() => {
+          showToast("Link do Google Meet copiado!", "success");
+          setTimeout(() => setCopiando(false), 2000);
+        }).catch(() => {
+          showToast("Erro ao copiar link.", "error");
+          setCopiando(false);
+        });
+      };
+
+      const handleEncerrarAula = () => {
+        if (!isRecording) return;
+        const aulaIdParaEncerrar = selectedAulaId;
+        setIsRecording(false);
+        setMeetUrl('');
+        
+        setAulas(prev => prev.map(a => {
+          if (a.id === aulaIdParaEncerrar) {
+            return { ...a, status: 'Processando IA' };
+          }
+          return a;
+        }));
+        showToast("Aula encerrada! Processamento iniciado.", "info");
+
+        // Simula o término do processamento em 10 segundos
+        setTimeout(() => {
+          setAulas(prev => prev.map(a => {
+            if (a.id === aulaIdParaEncerrar) {
+              return { 
+                ...a, 
+                status: 'Concluído',
+                resumo_texto: `Resumo gerado por IA para a aula: ${a.titulo}. Os principais pontos abordados envolveram a introdução histórica ao assunto, conceitos práticos e aplicações no ENEM. Recomenda-se focar nos exercícios de fixação da seção 2 do material complementar.`,
+                audio_url: 'https://example.com/audio-podcast.mp3'
+              };
+            }
+            return a;
+          }));
+          showToast("Processamento da IA concluído!", "success");
+        }, 10000);
+      };
+
+      const handleRetryWhatsapp = (id) => {
+        setAulas(prev => prev.map(a => {
+          if (a.id === id) {
+            return { ...a, status: 'Processando IA' };
+          }
+          return a;
+        }));
+        showToast("Reenviando materiais e notificações de WhatsApp...", "info");
+        setTimeout(() => {
+          setAulas(prev => prev.map(a => {
+            if (a.id === id) {
+              return { 
+                ...a, 
+                status: 'Concluído',
+                resumo_texto: `Resumo reprocessado com sucesso para a aula: ${a.titulo}.`,
+                audio_url: 'https://example.com/audio-retry.mp3'
+              };
+            }
+            return a;
+          }));
+          showToast("Notificações enviadas aos alunos via WhatsApp!", "success");
+        }, 3000);
+      };
+
+      const aulasFiltradas = aulas.filter(a => a.empresa_id === selectedTenantId);
+
+      return (
+        <div className="pb-16">
+          {/* HEADER PRINCIPAL */}
+          <header className="sticky top-0 z-50 bg-[#f26522] border-b border-[#ffffff]/10 shadow-lg">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <span className="text-2xl font-black tracking-wider text-white font-heading">
+                  QUÍMICA <span className="text-[#090a0a]">1000</span>
+                </span>
+                <span className="bg-[#090a0a] text-white text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full flex items-center gap-1 border border-white/10">
+                  <i data-lucide="sparkles" className="w-3 h-3 text-[#f26522]"></i> Agente de Foco MVP
+                </span>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 bg-[#090a0a]/30 border border-white/10 px-3 py-1.5 rounded-lg text-sm">
+                  <i data-lucide="database" className="w-4 h-4 text-white/70"></i>
+                  <select 
+                    value={selectedTenantId} 
+                    onChange={(e) => {
+                      setSelectedTenantId(e.target.value);
+                      showToast(`RLS ativo: Filtrado para a empresa selecionada.`, "info");
+                    }}
+                    className="bg-transparent border-none text-white focus:outline-none text-xs font-semibold cursor-pointer max-w-[200px]"
+                  >
+                    {TENANTS.map(t => (
+                      <option key={t.id} value={t.id} className="bg-[#090a0a] text-white">
+                        {t.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* CONTEÚDO */}
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            {/* OPERAÇÃO DE AULA */}
+            <section className="lg:col-span-5 space-y-6">
+              <div className="bg-[#121314] border border-white/5 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#f26522]/15 to-[#e11d48]/10 rounded-full blur-3xl pointer-events-none" />
+                
+                <h2 className="text-xl font-bold font-heading mb-6 flex items-center gap-2 text-white border-b border-white/5 pb-4">
+                  <i data-lucide="play" className="w-5 h-5 text-[#f26522]"></i> Operação de Aula
+                </h2>
+
+                <div className="space-y-2 mb-6">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
+                    Selecione a Aula do Cronograma
+                  </label>
+                  <select
+                    value={selectedAulaId}
+                    onChange={(e) => setSelectedAulaId(e.target.value)}
+                    disabled={isRecording}
+                    className="w-full bg-[#1c1d1e] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none cursor-pointer disabled:opacity-60"
+                  >
+                    {aulasFiltradas.map(aula => (
+                      <option key={aula.id} value={aula.id} className="bg-[#121314] text-white">
+                        {aula.data_prevista} - {aula.titulo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-4">
+                  {!isRecording ? (
+                    <button
+                      onClick={handleIniciarAula}
+                      disabled={loadingIniciar}
+                      className="w-full bg-[#f26522] hover:bg-[#d84a0d] text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-center gap-3 transition-all duration-300"
+                    >
+                      {loadingIniciar ? (
+                        <>
+                          <i data-lucide="refresh-cw" className="w-5 h-5 animate-spin"></i>
+                          <span>Iniciando Aula e Meet...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i data-lucide="play" className="w-5 h-5"></i>
+                          <span>Iniciar Aula e Gravação</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between bg-[#e11d48]/10 border border-[#e11d48]/20 px-4 py-3 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <span className="relative flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#e11d48] opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-[#e11d48]"></span>
+                          </span>
+                          <span className="text-sm font-bold text-[#e11d48] uppercase tracking-wider animate-pulse">
+                            GRAVANDO AULA...
+                          </span>
+                        </div>
+                      </div>
+
+                      {meetUrl && (
+                        <div className="bg-[#1c1d1e] border border-white/5 p-4 rounded-xl space-y-3">
+                          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
+                            Link da Reunião
+                          </span>
+                          <div className="flex items-center justify-between gap-2 bg-[#090a0a] px-3 py-2.5 rounded-lg border border-white/5">
+                            <a 
+                              href={meetUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-[#f26522] hover:underline truncate max-w-[200px]"
+                            >
+                              {meetUrl}
+                            </a>
+                            <button
+                              onClick={handleCopyLink}
+                              className="bg-[#1c1d1e] hover:bg-white/10 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1"
+                            >
+                              {copiando ? <i data-lucide="check" className="w-3.5 h-3.5 text-green-500"></i> : <i data-lucide="copy" className="w-3.5 h-3.5 text-gray-400"></i>}
+                              <span>Copiar</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleEncerrarAula}
+                        className="w-full bg-white/5 border border-white/15 hover:bg-[#e11d48] hover:border-transparent text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300"
+                      >
+                        <i data-lucide="square" className="w-5 h-5"></i>
+                        <span>Encerrar Aula</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* DASHBOARD */}
+            <section className="lg:col-span-7 space-y-6">
+              <div className="bg-[#121314] border border-white/5 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                <h2 className="text-xl font-bold font-heading mb-6 flex items-center gap-2 text-white border-b border-white/5 pb-4">
+                  <i data-lucide="layers" className="w-5 h-5 text-[#f26522]"></i> Painel de Acompanhamento
+                </h2>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-white/10 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        <th className="pb-3 pr-2">Aula / Título</th>
+                        <th className="pb-3 px-2 text-center">Data</th>
+                        <th className="pb-3 px-2 text-center">Status</th>
+                        <th className="pb-3 pl-2 text-right">Ações IA</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-sm">
+                      {aulasFiltradas.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="py-6 text-center text-gray-500">
+                            Nenhuma aula cadastrada.
+                          </td>
+                        </tr>
+                      ) : (
+                        aulasFiltradas.map(aula => (
+                          <tr key={aula.id} className="hover:bg-white/[0.02]">
+                            <td className="py-4 pr-2">
+                              <p className="font-bold text-white truncate max-w-[200px]">{aula.titulo}</p>
+                              <span className="text-[10px] text-gray-500 block">Drive ID: {aula.folder_drive_id}</span>
+                            </td>
+                            <td className="py-4 px-2 text-center text-gray-300 font-mono text-xs">
+                              {aula.data_prevista}
+                            </td>
+                            <td className="py-4 px-2 text-center">
+                              <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                aula.status === 'Gravando' ? 'bg-[#e11d48]/15 text-[#e11d48]' :
+                                aula.status === 'Processando IA' ? 'bg-amber-500/15 text-amber-500' :
+                                aula.status === 'Concluído' ? 'bg-green-500/15 text-green-500' :
+                                aula.status === 'Erro de Processamento' ? 'bg-red-500/15 text-red-500' :
+                                'bg-gray-500/15 text-gray-400'
+                              }`}>
+                                {aula.status}
+                              </span>
+                            </td>
+                            <td className="py-4 pl-2 text-right">
+                              <div className="flex justify-end gap-2">
+                                {aula.status === 'Concluído' && (
+                                  <>
+                                    <button
+                                      onClick={() => setActiveResumo({ titulo: aula.titulo, texto: aula.resumo_texto })}
+                                      className="p-2 bg-[#1c1d1e] hover:bg-white/10 text-xs rounded-lg flex items-center gap-1"
+                                    >
+                                      <i data-lucide="file-text" className="w-3.5 h-3.5 text-[#f26522]"></i>
+                                      <span>Resumo</span>
+                                    </button>
+                                    <button
+                                      onClick={() => setIsPlayingAudio(isPlayingAudio === aula.id ? null : aula.id)}
+                                      className={`p-2 rounded-lg text-xs flex items-center gap-1 ${isPlayingAudio === aula.id ? 'bg-[#f26522]' : 'bg-[#1c1d1e] hover:bg-white/10'}`}
+                                    >
+                                      <i data-lucide="volume-2" className="w-3.5 h-3.5"></i>
+                                      <span>{isPlayingAudio === aula.id ? 'Ouvindo...' : 'Áudio'}</span>
+                                    </button>
+                                  </>
+                                )}
+                                {aula.status === 'Erro de Processamento' && (
+                                  <button
+                                    onClick={() => handleRetryWhatsapp(aula.id)}
+                                    className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-lg text-xs flex items-center gap-1"
+                                  >
+                                    <i data-lucide="refresh-cw" className="w-3.5 h-3.5"></i>
+                                    <span>Reenviar</span>
+                                  </button>
+                                )}
+                                {aula.status === 'Aguardando' && <span className="text-xs text-gray-500 pr-2">Agendada</span>}
+                                {aula.status === 'Gravando' && <span className="text-xs text-[#e11d48] pr-2 font-bold animate-pulse">Ao Vivo</span>}
+                                {aula.status === 'Processando IA' && <span className="text-xs text-amber-500 pr-2 animate-pulse">Processando...</span>}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+          </main>
+
+          {/* MODAL RESUMO */}
+          {activeResumo && (
+            <div className="fixed inset-0 z-50 bg-[#090a0a]/80 backdrop-blur-md flex items-center justify-center p-4">
+              <div className="bg-[#121314] border border-white/10 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+                <h3 className="text-lg font-bold font-heading text-[#f26522] mb-2">Resumo da Aula</h3>
+                <p className="text-xs font-bold text-gray-400 mb-4">{activeResumo.titulo}</p>
+                <div className="bg-[#1c1d1e] p-4 rounded-xl text-sm leading-relaxed text-gray-300 border border-white/5 mb-6 max-h-[250px] overflow-y-auto">
+                  {activeResumo.texto}
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => setActiveResumo(null)} className="bg-white/10 hover:bg-white/15 px-5 py-2.5 rounded-lg text-xs font-bold">
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TOASTS */}
+          <div className="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none">
+            {toasts.map(toast => (
+              <div
+                key={toast.id}
+                className={`px-4 py-3 rounded-xl shadow-xl text-xs font-bold flex items-center gap-2 pointer-events-auto border ${
+                  toast.type === 'success' ? 'bg-[#f26522] text-white border-white/10' : 'bg-[#121314] text-white border-white/10'
+                }`}
+              >
+                <span>{toast.message}</span>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

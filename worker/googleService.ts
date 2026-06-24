@@ -8,7 +8,7 @@ const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/
 // Escopos necessários para acessar Calendar (Meet) e Drive
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/drive.readonly'
+  'https://www.googleapis.com/auth/drive'
 ];
 
 // Inicialização do cliente de autenticação JWT com a assinatura moderna baseada em objeto de opções

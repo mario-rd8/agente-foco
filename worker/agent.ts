@@ -114,37 +114,45 @@ export async function encerrarAula(aulaId: string): Promise<void> {
  * @param folderDriveId ID da pasta correspondente à aula no Drive
  */
 export async function monitorarNovaGravacao(folderDriveId: string) {
-  console.log(`Novo arquivo detectado na pasta do Drive: ${folderDriveId}. Iniciando buffer de cura de ${BUFFER_CURA_TEMPO / 1000 / 60} minutos...`);
+  console.log(`[Polling] Iniciando monitoramento ativo de novos vídeos para a pasta do Drive: ${folderDriveId}...`);
 
-  // 1. Busca os vídeos atuais na pasta
-  const videos = await listarVideosNaPasta(folderDriveId);
-  if (videos.length === 0) return;
-
-  const videoIds = videos.map(v => v.id);
-
-  // 2. Se já existir um timer ativo para essa pasta, nós o cancelamos
+  // Se já existir um timer ativo para essa pasta, nós o cancelamos para reiniciar a fila
   if (timersDeProcessamento.has(folderDriveId)) {
-    console.log(`[Cura] Cancelando timer anterior para a pasta ${folderDriveId} para agrupar novas gravações.`);
+    console.log(`[Polling] Cancelando monitoramento anterior para a pasta ${folderDriveId} para reiniciar checagem.`);
     clearTimeout(timersDeProcessamento.get(folderDriveId)!);
     timersDeProcessamento.delete(folderDriveId);
   }
 
-  // Acumula os IDs dos arquivos detectados
-  arquivosAcumulados.set(folderDriveId, videoIds);
+  // Função interna recursiva de checagem
+  const checkFolder = async () => {
+    try {
+      console.log(`[Polling] Buscando vídeos na pasta do Drive: ${folderDriveId}...`);
+      const videos = await listarVideosNaPasta(folderDriveId);
+      
+      if (videos.length > 0) {
+        // Encontrou vídeo! Inicia o processamento
+        const videoIds = videos.map(v => v.id);
+        console.log(`[Polling] Sucesso! Encontrado(s) ${videos.length} vídeo(s) na pasta ${folderDriveId}. Iniciando a esteira de processamento de IA...`);
+        
+        timersDeProcessamento.delete(folderDriveId);
+        await processarEsteiraIA(folderDriveId, videoIds);
+      } else {
+        // Não encontrou, reagenda a próxima verificação para dali a 1 minuto
+        console.log(`[Polling] Nenhum vídeo encontrado na pasta ${folderDriveId} ainda. Reagendando checagem para daqui a ${BUFFER_CURA_TEMPO / 1000} segundos...`);
+        
+        const nextTimer = setTimeout(checkFolder, BUFFER_CURA_TEMPO);
+        timersDeProcessamento.set(folderDriveId, nextTimer);
+      }
+    } catch (error: any) {
+      console.error(`[Polling] Erro na checagem da pasta ${folderDriveId}:`, error.message);
+      // Em caso de erro de conexão, reagenda a checagem mesmo assim para não quebrar o loop
+      const nextTimer = setTimeout(checkFolder, BUFFER_CURA_TEMPO);
+      timersDeProcessamento.set(folderDriveId, nextTimer);
+    }
+  };
 
-  // 3. Inicia um novo timer de 20 minutos
-  const timer = setTimeout(async () => {
-    timersDeProcessamento.delete(folderDriveId);
-    const arquivosParaProcessar = arquivosAcumulados.get(folderDriveId) || [];
-    arquivosAcumulados.delete(folderDriveId);
-
-    console.log(`[Cura] Buffer de ${BUFFER_CURA_TEMPO / 1000 / 60} minutos concluído para a pasta ${folderDriveId}. Iniciando processamento de ${arquivosParaProcessar.length} vídeo(s)...`);
-    
-    // Dispara a esteira de processamento de IA
-    await processarEsteiraIA(folderDriveId, arquivosParaProcessar);
-  }, BUFFER_CURA_TEMPO);
-
-  timersDeProcessamento.set(folderDriveId, timer);
+  // Inicia a primeira execução imediata
+  await checkFolder();
 }
 
 /**

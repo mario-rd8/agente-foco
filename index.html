@@ -64,6 +64,42 @@
       const [activeResumo, setActiveResumo] = useState(null);
       const [isPlayingAudio, setIsPlayingAudio] = useState(null);
 
+      // Carrega as aulas reais do Supabase ao montar o componente
+      useEffect(() => {
+        fetch('/api/aulas')
+          .then(res => {
+            if (!res.ok) throw new Error('Não foi possível carregar as aulas do banco');
+            return res.json();
+          })
+          .then(data => {
+            if (data && data.length > 0) {
+              // Mapeia os campos do Supabase para manter compatibilidade com o layout do front
+              const aulasFormatadas = data.map(a => ({
+                id: a.id,
+                titulo: a.titulo,
+                data_prevista: a.data_prevista ? new Date(a.data_prevista).toLocaleDateString('pt-BR') : '',
+                folder_drive_id: a.folder_drive_id || 'Não mapeado',
+                status: a.status || 'Aguardando',
+                empresa_id: a.empresa_id || 'tenant-matriz',
+                meet_url: a.meet_url || '',
+                resumo_texto: a.resumo_texto || '',
+                audio_url: a.audio_url || ''
+              }));
+              setAulas(aulasFormatadas);
+              // Pré-seleciona a primeira aula da empresa atual
+              const primeiraAulaMatriz = aulasFormatadas.find(a => a.empresa_id === 'tenant-matriz');
+              if (primeiraAulaMatriz) {
+                setSelectedAulaId(primeiraAulaMatriz.id);
+              } else {
+                setSelectedAulaId(aulasFormatadas[0].id);
+              }
+            }
+          })
+          .catch(err => {
+            console.warn('Erro ao carregar do banco, usando fallback local:', err.message);
+          });
+      }, []);
+
       useEffect(() => {
         // Inicializa ícones do Lucide de forma segura
         if (typeof lucide !== 'undefined' && lucide.createIcons) {

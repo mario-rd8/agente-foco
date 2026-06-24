@@ -60,6 +60,22 @@ app.post('/api/webhook/drive', async (req, res) => {
   }
 });
 
+// Endpoint para listar as aulas reais do Supabase
+app.get('/api/aulas', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('aulas')
+      .select('*')
+      .order('data_prevista', { ascending: true });
+
+    if (error) throw error;
+    return res.json(data);
+  } catch (error: any) {
+    console.error('Erro ao listar aulas:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Servidor rodando e servindo a aplicação na porta ${port}`);
 });

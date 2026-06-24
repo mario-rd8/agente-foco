@@ -1,6 +1,17 @@
 import express from 'express';
 import cors from 'cors';
+import { createClient } from '@supabase/supabase-js';
 import { iniciarAula, retryDisparo, monitorarNovaGravacao } from './worker/agent';
+
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://supabase.evaflow.com.br';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false
+  }
+});
 
 const app = express();
 const port = process.env.PORT || 3000;

@@ -140,3 +140,49 @@ export async function downloadDriveFile(fileId: string): Promise<any> {
     throw error;
   }
 }
+
+/**
+ * Envia um buffer de arquivo diretamente para uma pasta específica do Google Drive
+ * @param parentId ID da pasta pai no Google Drive
+ * @param filename Nome do arquivo a ser salvo
+ * @param mimeType MimeType do arquivo (ex: 'audio/mpeg' ou 'text/plain')
+ * @param body Buffer do arquivo
+ * @returns ID do arquivo criado no Google Drive
+ */
+export async function fazerUploadDrive(
+  parentId: string,
+  filename: string,
+  mimeType: string,
+  body: Buffer
+): Promise<string> {
+  if (!clientEmail || !privateKey) {
+    throw new Error('Credenciais da Service Account do Google não configuradas para upload.');
+  }
+
+  const stream = require('stream');
+  const bufferStream = new stream.PassThrough();
+  bufferStream.end(body);
+
+  try {
+    const response = await drive.files.create({
+      requestBody: {
+        name: filename,
+        parents: [parentId]
+      },
+      media: {
+        mimeType: mimeType,
+        body: bufferStream
+      },
+      fields: 'id',
+      auth
+    });
+
+    const fileId = response.data.id;
+    if (!fileId) throw new Error('Não foi possível obter o ID do arquivo criado no Drive.');
+    console.log(`[Google Drive] Arquivo ${filename} enviado com sucesso. ID: ${fileId}`);
+    return fileId;
+  } catch (error: any) {
+    console.error(`Erro ao fazer upload do arquivo ${filename} para a pasta ${parentId} do Drive:`, error.message);
+    throw error;
+  }
+}

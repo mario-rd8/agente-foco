@@ -1,4 +1,4 @@
-import { gerarLinkReuniao, listarVideosNaPasta, downloadDriveFile } from './googleService';
+import { gerarLinkReuniao, listarVideosNaPasta, downloadDriveFile, fazerUploadDrive } from './googleService';
 import { gerarResumoMultimodal, gerarAudioResumo } from './aiService';
 import { enviarNotificacaoAluno } from './evolutionService';
 import { createClient } from '@supabase/supabase-js';
@@ -62,6 +62,49 @@ export async function iniciarAula(aulaId: string): Promise<string> {
 
   console.log(`Aula ${aulaId} iniciada com sucesso. Link Meet: ${meetUrl}`);
   return meetUrl;
+}
+
+/**
+ * Encerra a aula e dispara a esteira de monitoramento da gravação no Drive
+ * @param aulaId ID da aula
+ */
+export async function encerrarAula(aulaId: string): Promise<void> {
+  console.log(`[Express API] Encerrando aula ID: ${aulaId}...`);
+
+  // 1. Busca os dados da aula (especialmente a pasta do Drive)
+  const { data: aula, error: fetchErr } = await supabase
+    .from('aulas')
+    .select('id, folder_drive_id, status')
+    .eq('id', aulaId)
+    .single();
+
+  if (fetchErr || !aula) {
+    throw new Error(`Erro ao buscar aula: ${fetchErr?.message || 'Aula não encontrada'}`);
+  }
+
+  // 2. Atualiza o status da aula para "Processando IA" no Supabase
+  const { error: updateErr } = await supabase
+    .from('aulas')
+    .update({
+      status: 'Processando IA',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', aulaId);
+
+  if (updateErr) {
+    throw new Error(`Erro ao atualizar status da aula para processamento: ${updateErr.message}`);
+  }
+
+  // 3. Dispara a esteira do monitoramento de arquivos no Drive para a pasta correspondente
+  if (aula.folder_drive_id) {
+    console.log(`[Encerrar] Acionando monitoramento de gravação na pasta: ${aula.folder_drive_id}`);
+    // Não espera o buffer terminar (roda de forma assíncrona)
+    monitorarNovaGravacao(aula.folder_drive_id).catch(err => {
+      console.error(`Erro ao iniciar monitoramento do Drive para a pasta ${aula.folder_drive_id}:`, err.message);
+    });
+  } else {
+    console.warn(`[Encerrar] A aula ${aulaId} não possui folder_drive_id configurado para buscar gravações.`);
+  }
 }
 
 /**
@@ -182,6 +225,33 @@ async function processarEsteiraIA(folderDriveId: string, videoIds: string[]) {
       .getPublicUrl(audioFilename);
 
     const audioUrl = publicUrlData.publicUrl;
+
+    // Passo D: Fazer upload do áudio e do resumo em texto diretamente para a pasta do Drive correspondente
+    try {
+      console.log(`[Drive Upload] Enviando áudio e resumo para a pasta do Drive: ${folderDriveId}...`);
+      
+      // Envia o resumo em formato de texto .txt
+      const resumoBuffer = Buffer.from(resumoTexto, 'utf-8');
+      await fazerUploadDrive(
+        folderDriveId,
+        `Resumo IA - ${aula.titulo}.txt`,
+        'text/plain',
+        resumoBuffer
+      );
+
+      // Envia o arquivo de áudio podcast .mp3
+      await fazerUploadDrive(
+        folderDriveId,
+        `Podcast Resumo - ${aula.titulo}.mp3`,
+        'audio/mpeg',
+        audioBuffer
+      );
+      
+      console.log('[Drive Upload] Arquivos salvos com sucesso na pasta do Drive.');
+    } catch (driveErr: any) {
+      console.error('Falha ao salvar arquivos gerados na pasta do Google Drive:', driveErr.message);
+      // Mantém o fluxo rodando mesmo se falhar o backup do Drive
+    }
 
     // Atualiza a tabela 'aulas' com o resumo e o áudio
     await supabase

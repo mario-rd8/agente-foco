@@ -168,30 +168,28 @@
         const aulaIdParaEncerrar = selectedAulaId;
         setIsRecording(false);
         setMeetUrl('');
-        
-        setAulas(prev => prev.map(a => {
-          if (a.id === aulaIdParaEncerrar) {
-            return { ...a, status: 'Processando IA' };
-          }
-          return a;
-        }));
-        showToast("Aula encerrada! Processamento iniciado.", "info");
 
-        // Simula o término do processamento em 10 segundos
-        setTimeout(() => {
+        fetch('/api/aula/encerrar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aulaId: aulaIdParaEncerrar })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error('Falha ao encerrar a aula');
+          return res.json();
+        })
+        .then(data => {
           setAulas(prev => prev.map(a => {
             if (a.id === aulaIdParaEncerrar) {
-              return { 
-                ...a, 
-                status: 'Concluído',
-                resumo_texto: `Resumo gerado por IA para a aula: ${a.titulo}. Os principais pontos abordados envolveram a introdução histórica ao assunto, conceitos práticos e aplicações no ENEM. Recomenda-se focar nos exercícios de fixação da seção 2 do material complementar.`,
-                audio_url: 'https://example.com/audio-podcast.mp3'
-              };
+              return { ...a, status: 'Processando IA' };
             }
             return a;
           }));
-          showToast("Processamento da IA concluído!", "success");
-        }, 10000);
+          showToast("Aula encerrada com sucesso! Aguardando o processamento do vídeo no Google Drive...", "info");
+        })
+        .catch(err => {
+          showToast(`Erro ao encerrar: ${err.message}`, "error");
+        });
       };
 
       const handleRetryWhatsapp = (id) => {

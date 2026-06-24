@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
-import { iniciarAula, retryDisparo, monitorarNovaGravacao } from './worker/agent';
+import { iniciarAula, encerrarAula, retryDisparo, monitorarNovaGravacao } from './worker/agent';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://supabase.evaflow.com.br';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -34,6 +34,22 @@ app.post('/api/aula/iniciar', async (req, res) => {
     return res.json({ success: true, meetUrl });
   } catch (error: any) {
     console.error('Erro no endpoint iniciar aula:', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint para encerrar aula (Fluxo que muda o status e inicia a verificação de vídeos no Drive)
+app.post('/api/aula/encerrar', async (req, res) => {
+  const { aulaId } = req.body;
+  if (!aulaId) {
+    return res.status(400).json({ error: 'aulaId é obrigatório' });
+  }
+
+  try {
+    await encerrarAula(aulaId);
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error('Erro no endpoint encerrar aula:', error.message);
     return res.status(500).json({ error: error.message });
   }
 });

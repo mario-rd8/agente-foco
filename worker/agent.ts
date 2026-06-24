@@ -1,4 +1,4 @@
-import { gerarLinkReuniao, listarVideosNaPasta, downloadDriveFile, fazerUploadDrive } from './googleService';
+import { gerarLinkReuniao, listarVideosNaPasta, downloadDriveFile, fazerUploadDrive, buscarPastaMeetRecordings, moverArquivoNoDrive } from './googleService';
 import { gerarResumoMultimodal, gerarAudioResumo } from './aiService';
 import { enviarNotificacaoAluno } from './evolutionService';
 import { createClient } from '@supabase/supabase-js';
@@ -114,7 +114,7 @@ export async function encerrarAula(aulaId: string): Promise<void> {
  * @param folderDriveId ID da pasta correspondente à aula no Drive
  */
 export async function monitorarNovaGravacao(folderDriveId: string) {
-  console.log(`[Polling] Iniciando monitoramento ativo de novos vídeos para a pasta do Drive: ${folderDriveId}...`);
+  console.log(`[Polling] Iniciando monitoramento ativo de novos vídeos na pasta do Drive...`);
 
   // Se já existir um timer ativo para essa pasta, nós o cancelamos para reiniciar a fila
   if (timersDeProcessamento.has(folderDriveId)) {
@@ -126,26 +126,35 @@ export async function monitorarNovaGravacao(folderDriveId: string) {
   // Função interna recursiva de checagem
   const checkFolder = async () => {
     try {
-      console.log(`[Polling] Buscando vídeos na pasta do Drive: ${folderDriveId}...`);
-      const videos = await listarVideosNaPasta(folderDriveId);
+      // 1. Localiza a pasta padrão "Meet Recordings" compartilhada no Drive do professor
+      const meetRecordingsFolderId = await buscarPastaMeetRecordings();
+      console.log(`[Polling] Buscando novas gravações do Meet na pasta 'Meet Recordings' (ID: ${meetRecordingsFolderId})...`);
+      
+      const videos = await listarVideosNaPasta(meetRecordingsFolderId);
       
       if (videos.length > 0) {
-        // Encontrou vídeo! Inicia o processamento
-        const videoIds = videos.map(v => v.id);
-        console.log(`[Polling] Sucesso! Encontrado(s) ${videos.length} vídeo(s) na pasta ${folderDriveId}. Iniciando a esteira de processamento de IA...`);
+        // Pega o vídeo mais recente encontrado (ou o primeiro da lista ordenada por data)
+        const videoParaProcessar = videos[0];
+        console.log(`[Polling] Sucesso! Vídeo "${videoParaProcessar.name}" encontrado em 'Meet Recordings'.`);
+        
+        // 2. Move o vídeo da pasta "Meet Recordings" para a pasta específica da aula no Drive
+        console.log(`[Polling] Movendo o vídeo "${videoParaProcessar.name}" para a pasta da aula correspondente: ${folderDriveId}...`);
+        await moverArquivoNoDrive(videoParaProcessar.id, folderDriveId);
         
         timersDeProcessamento.delete(folderDriveId);
-        await processarEsteiraIA(folderDriveId, videoIds);
+
+        // 3. Prossegue para a esteira de processamento de IA usando a referência do arquivo movido
+        await processarEsteiraIA(folderDriveId, [videoParaProcessar.id]);
       } else {
         // Não encontrou, reagenda a próxima verificação para dali a 1 minuto
-        console.log(`[Polling] Nenhum vídeo encontrado na pasta ${folderDriveId} ainda. Reagendando checagem para daqui a ${BUFFER_CURA_TEMPO / 1000} segundos...`);
+        console.log(`[Polling] Nenhum vídeo encontrado em 'Meet Recordings' ainda. Reagendando checagem para daqui a ${BUFFER_CURA_TEMPO / 1000} segundos...`);
         
         const nextTimer = setTimeout(checkFolder, BUFFER_CURA_TEMPO);
         timersDeProcessamento.set(folderDriveId, nextTimer);
       }
     } catch (error: any) {
-      console.error(`[Polling] Erro na checagem da pasta ${folderDriveId}:`, error.message);
-      // Em caso de erro de conexão, reagenda a checagem mesmo assim para não quebrar o loop
+      console.error(`[Polling] Erro na checagem e movimentação do arquivo no Drive:`, error.message);
+      // Em caso de erro de conexão ou permissão, reagenda para continuar tentando
       const nextTimer = setTimeout(checkFolder, BUFFER_CURA_TEMPO);
       timersDeProcessamento.set(folderDriveId, nextTimer);
     }

@@ -186,3 +186,57 @@ export async function fazerUploadDrive(
     throw error;
   }
 }
+
+/**
+ * Busca pelo ID da pasta padrão "Meet Recordings" na conta do Google Drive
+ * @returns ID da pasta "Meet Recordings" ou lança erro se não encontrar
+ */
+export async function buscarPastaMeetRecordings(): Promise<string> {
+  try {
+    const res = await drive.files.list({
+      q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Meet Recordings' and trashed = false",
+      fields: 'files(id, name)',
+      auth
+    });
+
+    const folders = res.data.files || [];
+    if (folders.length === 0) {
+      throw new Error("Pasta 'Meet Recordings' não encontrada no Google Drive compartilhada.");
+    }
+    return folders[0].id || '';
+  } catch (error: any) {
+    console.error("Erro ao localizar pasta 'Meet Recordings':", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Move um arquivo de uma pasta para outra dentro do Google Drive
+ * @param fileId ID do arquivo a ser movido
+ * @param folderDriveId ID da pasta de destino da aula
+ */
+export async function moverArquivoNoDrive(fileId: string, folderDriveId: string): Promise<void> {
+  try {
+    // 1. Busca os pais atuais do arquivo
+    const file = await drive.files.get({
+      fileId,
+      fields: 'parents',
+      auth
+    });
+    const previousParents = file.data.parents?.join(',') || '';
+
+    // 2. Transfere o arquivo adicionando o novo pai e removendo os pais anteriores
+    await drive.files.update({
+      fileId,
+      addParents: folderDriveId,
+      removeParents: previousParents,
+      fields: 'id, parents',
+      auth
+    });
+    console.log(`[Google Drive] Arquivo ID: ${fileId} movido com sucesso para a pasta da aula: ${folderDriveId}`);
+  } catch (error: any) {
+    console.error(`Erro ao mover arquivo ${fileId} no Drive:`, error.message);
+    throw error;
+  }
+}
+

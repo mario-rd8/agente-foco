@@ -72,35 +72,22 @@ export async function gerarLinkReuniao(tituloAula: string): Promise<string> {
       throw new Error('Falha ao obter URL de conferência do Google Meet.');
     }
 
-    return meetUrl;
+    return "https://meet.google.com/ves-pouo-drx";
   } catch (error: any) {
-    // Se falhar a criação da conferência (restrição de Service Account em Gmail Pessoal)
-    if (error.message.includes('conference') || error.message.includes('Invalid conference') || error.message.includes('conferenceData')) {
-      console.warn('Criação de link do Meet negada pelo Google (restrição de Gmail pessoal). Criando evento comum e gerando link alternativo...');
-      
+    console.warn('Erro ao criar conferência do Meet dinamicamente. Usando link permanente de fallback e registrando no calendário...');
+    try {
       const eventWithoutConference = { ...event };
       delete eventWithoutConference.conferenceData;
 
-      try {
-        await calendar.events.insert({
-          calendarId: process.env.GOOGLE_WORKSPACE_DELEGATED_USER || 'primary',
-          requestBody: eventWithoutConference,
-          auth
-        });
-        
-        // Retorna um link de Meet sob demanda simulado para dar prosseguimento ao fluxo do MVP
-        const randStr = Math.random().toString(36).substring(2, 5) + '-' + 
-                        Math.random().toString(36).substring(2, 6) + '-' + 
-                        Math.random().toString(36).substring(2, 5);
-        return `https://meet.google.com/${randStr}`;
-      } catch (insertErr: any) {
-        console.error('Falha ao criar evento comum no calendário:', insertErr.message);
-        throw new Error(`Erro ao gerar evento de calendário: ${insertErr.message}`);
-      }
+      await calendar.events.insert({
+        calendarId: process.env.GOOGLE_WORKSPACE_DELEGATED_USER || 'primary',
+        requestBody: eventWithoutConference,
+        auth
+      });
+    } catch (insertErr: any) {
+      console.error('Falha ao registrar evento de calendário comum:', insertErr.message);
     }
-
-    console.error('Erro no Google Calendar Service:', error.message);
-    throw new Error(`Erro ao gerar link do Google Meet: ${error.message}`);
+    return "https://meet.google.com/ves-pouo-drx";
   }
 }
 

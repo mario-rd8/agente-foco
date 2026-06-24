@@ -82,23 +82,37 @@
       const handleIniciarAula = () => {
         if (isRecording) return;
         setLoadingIniciar(true);
-        setTimeout(() => {
-          setLoadingIniciar(false);
-          setIsRecording(true);
-          const randStr = Math.random().toString(36).substring(2, 5) + '-' + 
-                          Math.random().toString(36).substring(2, 6) + '-' + 
-                          Math.random().toString(36).substring(2, 5);
-          const generatedUrl = `https://meet.google.com/${randStr}`;
-          setMeetUrl(generatedUrl);
 
-          setAulas(prev => prev.map(a => {
-            if (a.id === selectedAulaId) {
-              return { ...a, status: 'Gravando', meet_url: generatedUrl };
-            }
-            return a;
-          }));
-          showToast("Aula e gravação iniciadas com sucesso!", "success");
-        }, 1500);
+        fetch('/api/aula/iniciar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aulaId: selectedAulaId })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error('Erro ao processar chamada');
+          return res.json();
+        })
+        .then(data => {
+          setLoadingIniciar(false);
+          if (data.meetUrl) {
+            setIsRecording(true);
+            setMeetUrl(data.meetUrl);
+            setAulas(prev => prev.map(a => {
+              if (a.id === selectedAulaId) {
+                return { ...a, status: 'Em Aula', meet_url: data.meetUrl };
+              }
+              return a;
+            }));
+            showToast("Aula e gravação iniciadas com sucesso!", "success");
+            window.open(data.meetUrl, '_blank');
+          } else {
+            showToast("Erro ao gerar link de reunião do Meet.", "error");
+          }
+        })
+        .catch(err => {
+          setLoadingIniciar(false);
+          showToast(`Falha de comunicação: ${err.message}`, "error");
+        });
       };
 
       const handleCopyLink = () => {
@@ -152,20 +166,45 @@
           return a;
         }));
         showToast("Reenviando materiais e notificações de WhatsApp...", "info");
-        setTimeout(() => {
+
+        fetch('/api/aula/retry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aulaId: id })
+        })
+        .then(res => {
+          if (!res.ok) throw new Error('Falha na resposta do servidor');
+          return res.json();
+        })
+        .then(data => {
+          if (data.success) {
+            showToast("Notificações enviadas aos alunos via WhatsApp!", "success");
+            // Recarrega o estado atualizando no frontend de que foi concluído
+            setAulas(prev => prev.map(a => {
+              if (a.id === id) {
+                return { ...a, status: 'Concluído' };
+              }
+              return a;
+            }));
+          } else {
+            showToast("Ocorreu uma falha no reenvio do WhatsApp.", "error");
+            setAulas(prev => prev.map(a => {
+              if (a.id === id) {
+                return { ...a, status: 'Erro de Processamento' };
+              }
+              return a;
+            }));
+          }
+        })
+        .catch(err => {
+          showToast(`Erro na comunicação: ${err.message}`, "error");
           setAulas(prev => prev.map(a => {
             if (a.id === id) {
-              return { 
-                ...a, 
-                status: 'Concluído',
-                resumo_texto: `Resumo reprocessado com sucesso para a aula: ${a.titulo}.`,
-                audio_url: 'https://example.com/audio-retry.mp3'
-              };
+              return { ...a, status: 'Erro de Processamento' };
             }
             return a;
           }));
-          showToast("Notificações enviadas aos alunos via WhatsApp!", "success");
-        }, 3000);
+        });
       };
 
       const aulasFiltradas = aulas.filter(a => a.empresa_id === selectedTenantId);
